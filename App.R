@@ -13,6 +13,7 @@ library(dygraphs)
 source("AuxData.R")
 source('Module_Map.R')
 source("Module_Monitoring.R")
+source('Module_Analytics.R')
 
 ########################################################################################################################
 
@@ -58,8 +59,11 @@ Body <- dashboardBody(
         tabItem(tabName = "mapa", MapModuleUI("GeoRef")),  
     ####################################################################################################################
     ## Tab con las estadísticas de resumen generales 
-        tabItem(tabName = "General", MonModuleUI("General", data = covid_cor))
+        tabItem(tabName = "General", MonModuleUI("General", data = covid_cor)),
     
+    ##########################################################################################################
+    ## Tab con el análisis de tasas y calculos epidemiologicos 
+        tabItem(tabName = "Analytics", AnalyticModuleUI("Analytic", data = covid_cor))
     )
     )
     
@@ -79,6 +83,7 @@ server <- function(input, output, session) {
     ### Funtions for tab Dasboard 
     callModule(MapModuleSR, "GeoRef", data = map_cor)
     callModule(MonModulerSR, "General", data = covid_cor)
+    callModule(AnalyticModuleSR, "Analytic", data = covid_cor)
 }
 
 shinyApp(ui, server)
