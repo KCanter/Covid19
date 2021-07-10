@@ -6,6 +6,7 @@ library(tidyverse)
 library(htmlwidgets)
 library(leaflet)
 library(dygraphs)
+library(lubridate)
 
 ########################################################################################################################
 
@@ -83,7 +84,7 @@ server <- function(input, output, session) {
     ### Funtions for tab Dasboard 
     callModule(MapModuleSR, "GeoRef", data = map_cor)
     callModule(MonModulerSR, "General", data = covid_cor)
-    callModule(AnalyticModuleSR, "Analytic", data = covid_cor)
+    callModule(AnalyticModuleSR, "Analytic", data = covid_cor, data_mun = Pobcor)
 }
 
 shinyApp(ui, server)

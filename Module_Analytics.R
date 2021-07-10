@@ -1,6 +1,8 @@
 library(dplyr)
 library(shiny)
 library(shinydashboard)
+library(lubridate)
+
 
 AnalyticModuleUI <- function(id, data) {
     ns <- NS(id)
@@ -9,14 +11,46 @@ AnalyticModuleUI <- function(id, data) {
         valueBoxOutput(ns("Prev_dep")),
         valueBoxOutput(ns("Prev_mun")),
         valueBoxOutput(ns("Inc_dep")),
-        valueBoxOutput(ns("Inc_mun")),
+        # valueBoxOutput(ns("Inc_mun")),
         
-        shinydashboard::box(
-            solidHeader = T,
+        
+        
+        shinydashboard::tabBox(
+            title = "Estadísticas de contagios",
+            id = ns("tabset"),
+            height = "800px",
             width = 10,
-            dygraphOutput(ns("chance_rate")),
-            plotOutput(ns("rate_edad_sexo"))
-        ),
+            tabPanel(
+                title = "Tasa de contagios",
+                shinydashboard::box(solidHeader = T,
+                                    width = 12,
+                                    dygraphOutput(ns("chance_rate"), height = "600px"))
+            ),
+            tabPanel(
+                title = "Prevalencia por edad-sexo",
+                
+                shinydashboard::box(solidHeader = T,
+                                    width = 12,
+                                    plotOutput(ns("rate_edad_sexo"), height = "600px"))
+                ), 
+            tabPanel(
+                title = "Incidencia por municipios",
+                
+                shinydashboard::box(solidHeader = T,
+                                    width = 12,
+                                    plotOutput(ns("plot_inc_mun"), height = "600px"))
+            ), 
+            
+            tabPanel(
+                title = "Incidencia por periodo",
+                shinydashboard::box(solidHeader = T,
+                                    width = 12,
+                                    dygraphOutput(ns("Inc_plot_per"), height = "600px"))
+            )
+            
+            ), 
+        
+        
         
         shinydashboard::box(
             solidHeader = T,
@@ -33,13 +67,6 @@ AnalyticModuleUI <- function(id, data) {
                 ),
                 selected = "MONTERIA",
                 options = list(create = TRUE)
-            ),
-            dateRangeInput(
-                ns("fechas_analytics"),
-                label = "Rango de fechas",
-                start = "2020-03-25",
-                end = "2021-06-30",
-                startview = "month"
             )
         )
         
@@ -51,7 +78,7 @@ AnalyticModuleUI <- function(id, data) {
 
 
 
-AnalyticModuleSR <- function(input, output, session, data) {
+AnalyticModuleSR <- function(input, output, session, data, data_mun) {
     
     
     fil_data <- reactive({
@@ -64,9 +91,7 @@ AnalyticModuleSR <- function(input, output, session, data) {
             ) %>%
             dplyr::mutate(Fecha = lubridate::dmy(Fecha),
                 recuperado = replace(recuperado, recuperado == "fallecido", "Fallecido")) %>%
-            dplyr::filter(ciudad_municipio_nom == input$Mun,
-                Fecha >= input$fechas_analytics[1] & Fecha <= input$fechas_analytics[2]
-            )
+            dplyr::filter(ciudad_municipio_nom == input$Mun)
     })
     
     output$Prev_dep <- renderValueBox({
@@ -85,6 +110,33 @@ AnalyticModuleSR <- function(input, output, session, data) {
             subtitle = paste("Prevalencia en el Departamento:",round(Prev*10000, 0), "por 10000 Hab."),
             icon = icon("fas fa-ribbon"),
             color = "purple",
+            width = 3
+        )
+    })
+    
+    output$Inc_dep <- renderValueBox({
+        
+        Ncasos <-   data %>% 
+            dplyr::mutate(
+                ciudad_municipio_nom = replace(ciudad_municipio_nom, 
+                                               ciudad_municipio_nom == "MO¾ITOS", "MOÑITOS")) %>% 
+            dplyr::summarise(ncasos = n()) %>% dplyr::pull(ncasos)
+        
+        Total_Pob <- 
+        data_mun %>% 
+            dplyr::filter(Entidad == "Córdoba", Año == 2021) %>% 
+            dplyr::pull(Valor)
+        
+        
+        shinydashboard::valueBox(
+            value = round(Ncasos / Total_Pob, 3),
+            subtitle = paste(
+                "Incidencia de casos en el Depto.:",
+                round(Ncasos / Total_Pob * 10000, 0),
+                "por 10000 Hab."
+            ),
+            icon = icon("fas fa-user-check"),
+            color = "green",
             width = 3
         )
     })
@@ -133,7 +185,8 @@ AnalyticModuleSR <- function(input, output, session, data) {
     output$rate_edad_sexo <- renderPlot({
         
         fil_data() %>% 
-            dplyr::mutate(Fecha = lubridate::dmy(Fecha), edad = as.numeric(edad), sexo = as.factor(sexo), 
+            dplyr::mutate(edad = as.numeric(edad), 
+                          sexo = as.factor(sexo), 
                           fuente_tipo_contagio = as.factor(fuente_tipo_contagio), 
                           edad_group = dplyr::case_when(
                               edad < 1            ~ "Menor a 1 año",
@@ -168,22 +221,98 @@ AnalyticModuleSR <- function(input, output, session, data) {
                           )
             ) %>% 
             dplyr::filter(recuperado == "Fallecido") %>%
-            dplyr::mutate(dias = interval(ymd(date1), ymd(date2)) %/% days(1)) %>%
+            dplyr::mutate(dias = interval(min(Fecha), max(Fecha)) %/% days(1)) %>% 
             dplyr::group_by(edad_group, sexo) %>%
-            dplyr::summarise(cumcasos = sum(n()) / dias * 1000) %>%
+            dplyr::summarise(cumcasos = sum(n())/dias *1000) %>% 
+            dplyr::ungroup() %>% 
             ggplot(aes(x = edad_group, y = cumcasos, fill = sexo)) +
-            geom_bar(stat = "identity", position = position_dodge()) +
+            geom_bar(stat = "identity", position = position_dodge(0.9)) +
             geom_text(
                 aes(label = round(cumcasos, 0)),
                 vjust = 1.6,
                 color = "white",
                 position = position_dodge(0.9),
-                size = 3.5
+                size = 3
             ) +
             scale_fill_brewer(palette = "Paired") +
             theme_minimal() +
             theme(axis.text.x = element_text(angle = 45)) +
             ylab("Fallecidos por 1000 en el periodo de pandemia") + xlab("Grupo etario")
     })
+    
+    output$plot_inc_mun <- renderPlot({
+        
+        Ncasos <-   data %>% 
+            dplyr::mutate(
+                ciudad_municipio_nom = replace(ciudad_municipio_nom, 
+                                               ciudad_municipio_nom == "MO¾ITOS", "MOÑITOS"),
+                ciudad_municipio_nom = stringr::str_to_title(ciudad_municipio_nom)) %>% 
+            dplyr::group_by(ciudad_municipio_nom) %>% 
+            dplyr::summarise(ncasos = n()) %>%  dplyr::arrange(ciudad_municipio_nom) 
+            
+        incMun <- 
+            data_mun %>% 
+            dplyr::filter(Entidad != "Córdoba", Año == 2021) %>% 
+            dplyr::arrange(Entidad) %>% 
+            dplyr::mutate(ncasos = Ncasos$ncasos, Inc = ncasos / Valor * 100)
+        
+        incMun %>%
+            ggplot2::ggplot(aes(x = Entidad, y = Inc)) +
+            geom_bar(stat = "identity", position = position_dodge(0.9), fill="steelblue") +
+            geom_text(
+                aes(label = round(Inc, 1)),
+                vjust = 1.6,
+                color = "white",
+                position = position_dodge(0.9),
+                size = 3
+            ) +
+            theme_minimal() +
+            theme(axis.text.x = element_text(angle = 45)) +
+            ylab("(%) Porcentaje de Incidencia") + xlab("Municipio")    
+        
+    })
+    
+    
+    output$Inc_plot_per <- renderDygraph({
+        
+        Nombres <- 
+            data %>% 
+            dplyr::mutate(
+                ciudad_municipio_nom = replace(ciudad_municipio_nom, ciudad_municipio_nom == "MO¾ITOS", "MOÑITOS")) %>% 
+            dplyr::distinct(ciudad_municipio_nom) %>% 
+            dplyr::arrange(ciudad_municipio_nom) %>% dplyr::pull()
+        
+        TotPob <- 
+            data_mun %>% 
+            dplyr::filter(Entidad != "Córdoba", Año == 2021) %>% 
+            dplyr::arrange(Entidad) %>% 
+            dplyr::mutate(Nombre_mun = Nombres) %>% 
+            dplyr::filter(Nombre_mun == input$Mun) %>% 
+            dplyr::pull(Valor)
+        
+        Casos_fil <- 
+        fil_data() %>% 
+            dplyr::mutate(Mes = lubridate::floor_date(Fecha, "month")) %>% 
+            dplyr::group_by(Mes) %>% 
+            dplyr::summarise(Total_mes = n() ) %>% 
+            dplyr::mutate(Inc = (Total_mes / (TotPob - lag(Total_mes)))*100, 
+                          Inc = tidyr::replace_na(Inc, (Total_mes[1]/ TotPob)*100)) 
+        
+        data_xts <- xts::xts(x = Casos_fil[, 3], order.by = Casos_fil$Mes)
+        
+        dygraph(data_xts) %>%
+            dySeries("Inc", label = "Incidencia") %>%
+            dyHighlight(
+                highlightCircleSize = 3,
+                highlightSeriesBackgroundAlpha = 0.2,
+                hideOnMouseOut = FALSE
+            ) %>%
+            dyAxis("y", label = "(%) Incidencia") %>%
+            dyLegend(width = 400) %>%
+            dyRangeSelector(height = 20)
+        
+    })
+    
+    
     
 }

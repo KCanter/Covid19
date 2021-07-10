@@ -6,6 +6,7 @@ library(dplyr)
 library(tidyverse)
 library(jsonlite)
 library(tidyjson)
+library(lubridate)
 
 # Create list with nationality and country elements
 #query_params <- list(departamento_nom = "CORDOBA", LIMIT = NULL)
@@ -38,6 +39,8 @@ map_cor <- spTransform(mps, CRS("+init=epsg:4326"))
 
 casos_cor <- 
     covid_cor %>% 
+    dplyr::mutate(ciudad_municipio_nom = replace(ciudad_municipio_nom, 
+                                                 ciudad_municipio_nom == "MO¾ITOS", "MOÑITOS")) %>% 
     dplyr::group_by(ciudad_municipio_nom) %>% 
     dplyr::summarise(n = n()) %>% 
     dplyr::arrange(ciudad_municipio_nom) %>% 
@@ -46,6 +49,7 @@ casos_cor <-
 map_cor <- merge(map_cor, casos_cor, by.x = "NOM_MUNICI", by.y = "NOM_MUNICI")
 
 
+Pobcor <- read_excel("Data/Pobcor.xlsx")
 
 
 
