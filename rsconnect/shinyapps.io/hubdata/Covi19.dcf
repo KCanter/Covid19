@@ -1,0 +1,13 @@
+name: Covi19
+title: Covi19
+username:
+account: hubdata
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4377415
+bundleId: 4811619
+url: https://hubdata.shinyapps.io/Covi19/
+when: 1626103415.51422
+lastSyncTime: 1626103415.51423
+asMultiple: FALSE
+asStatic: FALSE

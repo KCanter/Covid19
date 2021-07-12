@@ -40,12 +40,6 @@ Sidebar <- dashboardSidebar(sidebarMenu(
         "Analytics",
         icon = icon("fas fa-chart-bar"),
         tabName = "Analytics"
-    ),
-    
-    menuItem(
-        "Predicts",
-        icon = icon("fas fa-chart-line"),
-        tabName = "Predicts"
     )
 ))
 

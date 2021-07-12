@@ -7,6 +7,11 @@ library(tidyverse)
 library(jsonlite)
 library(tidyjson)
 library(lubridate)
+library(readxl)
+library(raster)
+library(rgdal)
+library(rgeos)
+library(gtools)
 
 # Create list with nationality and country elements
 #query_params <- list(departamento_nom = "CORDOBA", LIMIT = NULL)
@@ -26,7 +31,7 @@ covid_cor <- jsonlite::fromJSON(content(resp, as = "text"), flatten = TRUE)
 
 
 # Load libraries ----------------------------------------------------------
-require(pacman)
+#require(pacman)
 pacman::p_load(raster, rgdal, rgeos, gtools, tidyverse, leaflet)
 
 # Load data for map--------------------------------------------------------
